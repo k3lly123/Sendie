@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-900: #1e3a8a;
+  
+  --shadow-premium: 0 4px 30px rgba(0, 0, 0, 0.03);
+  --shadow-double: 0 1px 3px rgba(0,0,0,0.05), 0 20px 40px rgba(0,0,0,0.02);
+}
+
+/* Custom global overrides for premium experience */
+body {
+  font-family: var(--font-sans);
+  background-color: #fafafa;
+  color: #111827;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar to keep layout clean */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+/* Beautiful pulse for active transit indicators */
+@keyframes doublePulse {
+  0% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(0.95); opacity: 0.5; }
+}
+
+.transit-pulse {
+  animation: doublePulse 2s infinite ease-in-out;
+}
+
+/* Print Friendly Styles & Layouts */
+@media print {
+  /* Hide interactive layouts and navigation bars */
+  #sidebar,
+  header,
+  #aistudio-evaluation-toolbox,
+  #toast-notifications-container,
+  button,
+  .print:hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Force standard printer background and layout spacing */
+  body, 
+  html, 
+  #root, 
+  #authenticated-app-frame, 
+  main {
+    background: white !important;
+    background-color: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  main {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  #order-details-root {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove premium visual effects for clean grayscale laser printing */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+

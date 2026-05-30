@@ -1,0 +1,6 @@
+{
+  "name": "Sendie",
+  "description": "A modern, premium logistics and delivery infrastructure platform for businesses and startups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
