@@ -66,11 +66,7 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
 
   return (
     <div id="orders-page-container" className="space-y-6">
-      
-      {/* FILTER HEADER ROW */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-premium flex flex-col md:flex-row md:items-center justify-between gap-4">
-        
-        {/* Search bar inputs */}
+      <div className="flex flex-col justify-between gap-4 rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.06)] md:flex-row md:items-center md:p-5">
         <div className="relative flex-1 max-w-md">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
             <Search className="h-4 w-4" />
@@ -85,7 +81,6 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
           />
         </div>
 
-        {/* Filter Selection list */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mr-1">Status:</span>
           {(['All', 'Pending', 'Picked Up', 'In Transit', 'Delivered', 'Failed'] as const).map((filter) => (
@@ -100,7 +95,6 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
 
           <div className="h-6 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
 
-          {/* Create Button redirect */}
           <button
             id="orders-create-shortcut"
             onClick={() => onNavigate('create-order')}
@@ -113,15 +107,13 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
 
       </div>
 
-      {/* TABLE DATA LIST CARD */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-premium overflow-hidden">
-        
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
         <div className="overflow-x-auto">
           {filteredOrders.length === 0 ? (
             <div className="py-16 text-center">
               <SlidersHorizontal className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700">No dispatch orders match your criteria.</p>
-              <p className="text-xs text-slate-400 mt-1">Try resetting state filters or searching for another customer descriptor.</p>
+              <p className="text-sm font-semibold text-slate-700">No orders match your filters.</p>
+              <p className="text-xs text-slate-400 mt-1">Try a different search term or clear the status filter.</p>
               <button 
                 onClick={() => { setSearchTerm(''); setStatusFilter('All'); }}
                 className="mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2 rounded-lg transition-colors"
@@ -135,7 +127,7 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
                 <tr>
                   <th className="p-4 pl-6">Order ID</th>
                   <th className="p-4">Customer Name</th>
-                  <th className="p-4">Delivery Cargo</th>
+                  <th className="p-4">Item description</th>
                   <th className="p-4">Pickup Hub</th>
                   <th className="p-4">Delivery address</th>
                   <th className="p-4 text-center">Status</th>
@@ -196,7 +188,7 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
                         <button
                           onClick={() => { onSelectOrder(order.id); onNavigate('order-details'); }}
                           className="p-1 px-2.5 rounded hover:bg-slate-100 hover:text-slate-800 transition-colors inline-flex items-center gap-1.5"
-                          title="View complete traces"
+                          title="View order details"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           <span className="text-[10px] font-bold">View</span>
@@ -220,7 +212,7 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
                             }
                           }}
                           className="p-1 px-2 rounded hover:bg-red-50 hover:text-red-600 transition-colors"
-                          title="Revoke shipment"
+                          title="Delete order"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -233,10 +225,9 @@ export default function OrdersPage({ orders, onNavigate, onSelectOrder, onDelete
           )}
         </div>
 
-        {/* Dynamic total details footer bar */}
         <div className="px-6 py-4 bg-[#FAFBFD] border-t border-slate-100 text-xs text-slate-400 font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <span>Displaying <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> total active dispatches</span>
-          <span className="font-mono text-[10px]">Sendie Logistics Router Active Engine v2.4</span>
+          <span>Displaying <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> total orders</span>
+          <span className="font-mono text-[10px]">Sendie delivery workspace</span>
         </div>
 
       </div>

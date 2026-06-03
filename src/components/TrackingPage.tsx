@@ -1,21 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { 
-  ShieldCheck, 
-  MapPin, 
-  PhoneCall, 
-  HelpCircle, 
-  Sparkles, 
-  Clock, 
-  Package, 
-  Check, 
-  Copy, 
-  Search,
-  MessageCircle,
-  Truck,
-  Building,
-  ExternalLink
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, Copy, ExternalLink, MapPin, Package, PhoneCall, Search, Sparkles, Truck } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import { Order, OrderStatus } from '../types';
 
@@ -26,240 +10,269 @@ interface TrackingPageProps {
   onShowToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
 }
 
-export default function TrackingPage({ orders, selectedOrderId, onSelectOrderId, onShowToast }: TrackingPageProps) {
+type TimelineStep = {
+  title: string;
+  desc: string;
+};
+
+const statusSteps: OrderStatus[] = ['Pending', 'Picked Up', 'In Transit', 'Delivered'];
+
+function getStatusMeta(status: OrderStatus) {
+  switch (status) {
+    case 'Pending':
+      return {
+        text: 'Awaiting pickup',
+        desc: 'Merchant is preparing the delivery for dispatch.',
+        badge: 'text-amber-600 bg-amber-500/10',
+      };
+    case 'Picked Up':
+      return {
+        text: 'Picked up',
+        desc: 'Courier has collected the package and the handoff is recorded.',
+        badge: 'text-purple-600 bg-purple-500/10',
+      };
+    case 'In Transit':
+      return {
+        text: 'In transit',
+        desc: 'The delivery is moving toward the destination.',
+        badge: 'text-blue-600 bg-blue-500/10',
+      };
+    case 'Delivered':
+      return {
+        text: 'Delivered',
+        desc: 'Package reached the recipient successfully.',
+        badge: 'text-emerald-600 bg-emerald-500/10',
+      };
+    case 'Failed':
+    default:
+      return {
+        text: 'Delivery issue',
+        desc: 'The delivery needs attention or a reattempt.',
+        badge: 'text-rose-600 bg-rose-500/10',
+      };
+  }
+}
+
+export default function TrackingPage({
+  orders,
+  selectedOrderId,
+  onSelectOrderId,
+  onShowToast,
+}: TrackingPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [copiedId, setCopiedId] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Active tracked order
-  const activeOrder = orders.find(o => o.id === selectedOrderId) || orders[0];
+  const activeOrder = useMemo(() => {
+    if (!orders.length) return undefined;
+    return orders.find((order) => order.id === selectedOrderId) || orders[0];
+  }, [orders, selectedOrderId]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
-    const found = orders.find(o => o.id.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+  const filteredOrders = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return orders;
+    return orders.filter((order) => {
+      return (
+        order.id.toLowerCase().includes(query) ||
+        order.customerName.toLowerCase().includes(query) ||
+        order.itemDescription.toLowerCase().includes(query)
+      );
+    });
+  }, [orders, searchTerm]);
+
+  const currentIndex = activeOrder
+    ? statusSteps.indexOf(activeOrder.status === 'Failed' ? 'Pending' : activeOrder.status)
+    : 0;
+
+  const timeline: TimelineStep[] = [
+    { title: 'Order created', desc: 'The merchant recorded the shipment.' },
+    { title: 'Package picked up', desc: 'Courier received the parcel.' },
+    { title: 'In transit', desc: 'Delivery is on the move.' },
+    { title: 'Delivered', desc: 'Package reached the recipient.' },
+  ];
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const found = filteredOrders.find((order) => order.id.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+
     if (found) {
       onSelectOrderId(found.id);
       setSearchTerm('');
+      return;
+    }
+
+    const message = `Tracking ID "${searchTerm}" was not found. Try a full ID like TRK-78290.`;
+    if (onShowToast) {
+      onShowToast(message, 'error');
     } else {
-      if (onShowToast) {
-        onShowToast(`Tracking ID "${searchTerm}" not found in sandbox register. Please try another ID (e.g., TRK-78290)`, 'error');
-      } else {
-        alert(`Tracking ID "${searchTerm}" not found in sandbox register. Please try another ID (e.g., TRK-78290)`);
-      }
+      alert(message);
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!activeOrder) return;
-    navigator.clipboard.writeText(`https://sendie.sh/track/${activeOrder.id}`);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
+    await navigator.clipboard.writeText(`https://sendie.sh/track/${activeOrder.id}`);
+    setCopiedId(activeOrder.id);
+    window.setTimeout(() => setCopiedId(null), 1800);
   };
 
-  // Status mapping
-  const getStatusDisplay = (status: OrderStatus) => {
-    switch (status) {
-      case 'Pending':
-        return { text: 'Awaiting Pickup', desc: 'Sellers is prepping cargo item at depot', color: 'text-amber-500 bg-amber-500/10' };
-      case 'Picked Up':
-        return { text: 'Assigned Co', desc: 'Driver successfully scanned and packed cargo', color: 'text-purple-600 bg-purple-500/10' };
-      case 'In Transit':
-        return { text: 'En Route', desc: 'Driver is traversing sorting channels now', color: 'text-blue-500 bg-blue-500/10' };
-      case 'Delivered':
-        return { text: 'Delivered', desc: 'Cargo safely delivered to recipient hub address', color: 'text-green-600 bg-green-500/10' };
-      case 'Failed':
-      default:
-        return { text: 'Delivery Halt', desc: 'Unsuccessful delivery attempts recorded', color: 'text-red-600 bg-red-500/10' };
-    }
-  };
-
-  const statusInfo = activeOrder ? getStatusDisplay(activeOrder.status) : null;
-  
-  // Status Index
-  const statusValues: OrderStatus[] = ['Pending', 'Picked Up', 'In Transit', 'Delivered'];
-  const currentIndex = activeOrder ? statusValues.indexOf(activeOrder.status === 'Failed' ? 'Pending' : activeOrder.status) : 0;
-
-  const timelineMilestones = [
-    { title: 'Order Dispatched', desc: 'Merchant registered shipment' },
-    { title: 'Cargo Picked Up', desc: 'Driver loaded and packed package' },
-    { title: 'In Transit', desc: 'Traversing local highway corridors' },
-    { title: 'Package Delivered', desc: 'Handed to recipient successfully' },
-  ];
+  const statusMeta = activeOrder ? getStatusMeta(activeOrder.status) : null;
 
   return (
-    <div id="tracking-customer-portal" className="max-w-4xl mx-auto space-y-6">
-      
-      {/* QUICK SANDBOX INSTRUCTIONS */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div id="tracking-customer-portal" className="mx-auto max-w-5xl space-y-6">
+      <div className="flex flex-col gap-4 rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 to-white p-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-bold text-blue-800 flex items-center gap-1.5 uppercase tracking-wider">
-            <Sparkles className="h-4 w-4 text-blue-600" />
-            <span>Customer-Facing Live Tracking Simulator</span>
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.26em] text-blue-700">
+            <Sparkles className="h-4 w-4" />
+            Customer tracking preview
           </p>
-          <p className="text-[11px] text-blue-600 mt-1 leading-relaxed">
-            This viewport demonstrates the premium, unbranded mobile-first tracking page provided to end customers. Search any sandbox ID to render details.
+          <p className="mt-1 text-xs leading-relaxed text-blue-700/80">
+            Preview the customer-facing delivery page for any order in this workspace.
           </p>
         </div>
 
-        {/* Global Select search container */}
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+        <form onSubmit={handleSearchSubmit} className="flex w-full gap-2 md:w-auto">
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search sandbox ID (e.g. TRK-78290)"
-            className="bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search tracking ID"
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15 md:w-64"
           />
           <button
             type="submit"
-            className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs"
+            className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
           >
-            Track Route
+            Track
           </button>
         </form>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* LEFTSIDE: Sandbox Controller overview */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-premium">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4">Sandbox register keys</h3>
-            <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-              Click any active sandbox order below to view it rendered in the mobile phone emulator:
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="space-y-4 lg:col-span-5">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-800">Tracked orders</h3>
+            <p className="mb-4 text-xs leading-relaxed text-slate-500">
+              Choose any order to preview the customer tracking experience.
             </p>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {orders.map((o) => (
-                <div
-                  key={o.id}
-                  onClick={() => onSelectOrderId(o.id)}
-                  className={`p-3 rounded-lg border text-xs cursor-pointer transition-all flex items-center justify-between hover:bg-slate-50 ${selectedOrderId === o.id ? 'border-blue-600 bg-blue-50/10 font-bold text-slate-900 shadow-sm' : 'border-slate-100 text-slate-600'}`}
-                >
-                  <div>
-                    <span className="font-mono font-bold block">{o.id}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">{o.customerName}</span>
-                  </div>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.2 ml-2 rounded uppercase border ${selectedOrderId === o.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                    {o.status}
-                  </span>
+
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              {filteredOrders.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+                  No orders match your search.
                 </div>
-              ))}
+              ) : (
+                filteredOrders.map((order) => {
+                  const isActive = order.id === activeOrder?.id;
+                  return (
+                    <button
+                      key={order.id}
+                      onClick={() => onSelectOrderId(order.id)}
+                      className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors ${
+                        isActive
+                          ? 'border-blue-600 bg-blue-50/70 shadow-sm'
+                          : 'border-slate-100 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div>
+                        <p className="font-mono text-sm font-bold text-slate-900">{order.id}</p>
+                        <p className="mt-1 text-[11px] text-slate-400">{order.customerName}</p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                          isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
 
-        {/* RIGHTSIDE: POLISHED PHONE TRACKING CONTAINER MOBILEVIEW */}
-        <div className="lg:col-span-7 flex justify-center">
-          
-          {/* Mock Smartphone Outer Shell */}
-          <div className="w-full max-w-[360px] bg-[#0F172A] p-2.5 rounded-[40px] shadow-2xl border-4 border-slate-800 relative z-10 overflow-hidden transform transition-all duration-300 hover:scale-[1.01]">
-            {/* Top Speaker/Camera notch */}
-            <div className="absolute top-2.5 left-1/2 transform -translate-x-1/2 w-28 h-5 bg-slate-900 rounded-full flex items-center justify-around px-3 z-50">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-800"></span>
-              <span className="w-10 h-1 bg-slate-800 rounded-full"></span>
-            </div>
-
-            {/* Mobile App Canvas Screen */}
-            <div className="bg-slate-50 text-slate-800 rounded-[30px] overflow-hidden min-h-[580px] flex flex-col justify-between pt-6 text-sm">
-              
-              {/* Header inside phone */}
-              <div className="bg-white border-b border-slate-200 p-4 pb-3 flex items-center justify-between sticky top-0 z-20">
+        <div className="flex justify-center lg:col-span-7">
+          <div className="w-full max-w-[390px] overflow-hidden rounded-[40px] border-4 border-slate-800 bg-[#0f172a] p-2.5 shadow-2xl">
+            <div className="relative overflow-hidden rounded-[32px] bg-slate-50 text-slate-800">
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-4 pb-3">
                 <BrandLogo size="sm" iconOnly />
                 <div className="text-right">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase leading-none tracking-widest font-sans">DELIVERY CARRIER</p>
-                  <p className="text-sm font-bold text-slate-900 leading-none mt-1">Sendie Express</p>
+                  <p className="text-[9px] font-bold uppercase leading-none tracking-widest text-slate-400">
+                    Public tracking
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">Sendie delivery</p>
                 </div>
               </div>
 
-              {/* Scrollable Mobile Body container */}
-              <div className="p-4 flex-1 space-y-4 overflow-y-auto max-h-[460px]">
-                
-                {/* Simulated Real Map graphic box */}
-                <div className="h-28 bg-[#DBEAFE]/40 border border-[#BFDBFE]/60 rounded-2xl relative overflow-hidden flex items-center justify-center p-3 select-none">
-                  {/* Grid overlay */}
-                  <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#2563eb_1.2px,transparent_1.2px)] [background-size:16px_16px]"></div>
-                  
-                  {/* Decorative curved SVG route ribbon */}
-                  <svg className="w-full h-full absolute inset-0 text-blue-500/80" stroke="currentColor" fill="none">
-                    <path d="M 20 80 C 60 70 80 20 180 40 C 240 50 250 15 300 20" strokeWidth="3" strokeLinecap="round" />
+              <div className="space-y-4 p-4">
+                <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-100/60 to-sky-50">
+                  <div className="absolute inset-0 bg-[radial-gradient(#93c5fd_1px,transparent_1px)] [background-size:18px_18px] opacity-30" />
+                  <svg className="absolute inset-0 h-full w-full text-blue-500/70" fill="none" stroke="currentColor">
+                    <path d="M 22 92 C 66 68 84 24 176 42 C 238 54 260 20 330 22" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                  
-                  {/* Map marker elements */}
-                  <div className="absolute left-6 top-[72px] h-3 w-3 bg-blue-600 rounded-full ring-4 ring-blue-500/10 border-2 border-white"></div>
-                  
-                  <div className="absolute right-12 top-[12px] h-4 w-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-white text-[8px] text-white animate-bounce shadow">
-                    ✓
+                  <div className="absolute left-5 top-[78px] h-3 w-3 rounded-full border-2 border-white bg-blue-600 ring-4 ring-blue-500/10" />
+                  <div className="absolute right-10 top-[14px] flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-[10px] text-white shadow">
+                    <Check className="h-3 w-3" />
                   </div>
-
                   {activeOrder && activeOrder.status !== 'Delivered' && activeOrder.status !== 'Failed' ? (
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg px-2 py-1 shadow border border-slate-100 flex items-center gap-1.5 animate-pulse">
+                    <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-lg border border-slate-100 bg-white px-2 py-1 shadow-sm">
                       <Truck className="h-3 w-3 text-blue-600" />
-                      <span className="text-[9px] font-bold text-slate-800">Courier moving</span>
+                      <span className="text-[9px] font-bold text-slate-800">Courier on route</span>
                     </div>
                   ) : null}
-
-                  {/* Tracking Id display index */}
-                  <div className="absolute bottom-2 left-2 bg-slate-900/90 text-white font-mono text-[9px] px-2 py-0.5 rounded-md font-bold uppercase">
-                    ID: {activeOrder ? activeOrder.id : 'TRK-...'}
+                  <div className="absolute bottom-2 left-2 rounded-md bg-slate-900/90 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-white">
+                    ID: {activeOrder?.id ?? 'TRK-...'}
                   </div>
                 </div>
 
-                {/* Tracking ID and Status summary card */}
-                {activeOrder && statusInfo ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                {activeOrder && statusMeta ? (
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold font-mono text-slate-400 uppercase tracking-widest">{activeOrder.id}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusInfo.color}`}>
-                        {statusInfo.text}
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                        {activeOrder.id}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusMeta.badge}`}>
+                        {statusMeta.text}
                       </span>
                     </div>
-
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-snug">{statusInfo.desc}</h4>
-                      <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold tracking-wider text-blue-600">
-                        ESTIMATED DELIVERY: {activeOrder.estimatedDelivery}
+                      <h4 className="text-sm font-bold text-slate-900">{statusMeta.desc}</h4>
+                      <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-blue-600">
+                        Estimated delivery: {activeOrder.estimatedDelivery}
                       </p>
                     </div>
                   </div>
                 ) : null}
 
-                {/* Progress dot timeline steps */}
                 {activeOrder ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <h5 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-4 block">DELIVERY MILESTONES</h5>
-                    
-                    {activeOrder.status === 'Failed' ? (
-                      <div className="bg-red-50 text-red-800 border border-red-200 rounded-xl p-3 text-[11px] mb-3 leading-relaxed">
-                        ⚠️ Automated notice: Delivery attempted but recipient was unreachable.
-                      </div>
-                    ) : null}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <h5 className="mb-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      Delivery milestones
+                    </h5>
 
-                    <div className="relative pl-5 space-y-4">
-                      {/* Thread line line */}
-                      <div className="absolute left-2 top-2 bottom-2 w-[1.5px] bg-slate-100"></div>
-
-                      {timelineMilestones.map((step, index) => {
-                        const markerActive = index <= currentIndex && activeOrder.status !== 'Failed';
-                        const makerCurrent = index === currentIndex && activeOrder.status !== 'Failed';
-
-                        let dotStyle = 'bg-slate-100 text-slate-300 border-slate-100';
-                        if (markerActive) {
-                          if (makerCurrent) {
-                            dotStyle = 'bg-blue-600 text-white border-blue-100 ring-2 ring-blue-500/10 scale-105 font-bold';
-                          } else {
-                            dotStyle = 'bg-green-600 text-white border-green-100 font-bold';
-                          }
-                        }
+                    <div className="relative space-y-4 pl-5">
+                      <div className="absolute bottom-2 left-2 top-2 w-px bg-slate-100" />
+                      {timeline.map((step, index) => {
+                        const active = index <= currentIndex && activeOrder.status !== 'Failed';
+                        const current = index === currentIndex && activeOrder.status !== 'Failed';
+                        const dotClass = current
+                          ? 'border-blue-100 bg-blue-600 text-white ring-2 ring-blue-500/10'
+                          : active
+                            ? 'border-green-100 bg-green-600 text-white'
+                            : 'border-slate-100 bg-slate-100 text-slate-300';
 
                         return (
-                          <div key={index} className="relative text-left">
-                            <span className={`absolute -left-[17px] h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[7px] z-10 transition-colors ${dotStyle}`}>
-                              {markerActive ? '✓ font-bold' : ''}
+                          <div key={step.title} className="relative">
+                            <span
+                              className={`absolute -left-[17px] flex h-3.5 w-3.5 items-center justify-center rounded-full border text-[7px] ${dotClass}`}
+                            >
+                              {active ? <Check className="h-2.5 w-2.5" /> : ''}
                             </span>
-                            <div>
-                              <p className={`text-xs font-bold leading-none ${markerActive ? 'text-slate-800' : 'text-slate-400'}`}>{step.title}</p>
-                              <p className="text-[10px] text-slate-400 mt-1 leading-normal">{step.desc}</p>
-                            </div>
+                            <p className={`text-xs font-bold ${active ? 'text-slate-800' : 'text-slate-400'}`}>
+                              {step.title}
+                            </p>
+                            <p className="mt-1 text-[10px] leading-normal text-slate-400">{step.desc}</p>
                           </div>
                         );
                       })}
@@ -267,63 +280,57 @@ export default function TrackingPage({ orders, selectedOrderId, onSelectOrderId,
                   </div>
                 ) : null}
 
-                {/* Cargo contents info */}
                 {activeOrder ? (
-                  <div className="bg-[#FAFBFD] border border-slate-200 rounded-2xl p-4 text-xs space-y-2.5">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CARGO CONTENTS</p>
-                    <div className="flex gap-2 items-center text-slate-800 font-semibold">
-                      <Package className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-[#fafbfd] p-4 text-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Delivery details</p>
+                    <div className="flex items-center gap-2 font-semibold text-slate-800">
+                      <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
                       <span>{activeOrder.itemDescription}</span>
                     </div>
-
-                    <div className="border-t border-slate-200/50 pt-2 text-[11px] text-slate-500 leading-relaxed italic bg-white p-2 border rounded">
-                      <strong>Delivery notes:</strong> {activeOrder.notes || 'Handle box with extreme professionalism.'}
+                    <div className="rounded-lg border border-slate-200 bg-white p-2 text-[11px] leading-relaxed text-slate-500">
+                      <strong>Delivery notes:</strong>{' '}
+                      {activeOrder.notes || 'Handle with care and deliver to the recipient on arrival.'}
                     </div>
-
-                    {/* Copier helper */}
-                    <div className="pt-1.5 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                      <span>Sender: Delta Partners</span>
-                      <button 
-                        onClick={handleCopyLink} 
-                        className="text-blue-600 hover:underline flex items-center gap-1 leading-none cursor-pointer"
+                    <div className="flex items-center justify-between gap-2 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      <span>Sender: {activeOrder.customerName}</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyLink}
+                        className="flex items-center gap-1 text-blue-600 hover:underline"
                       >
-                        {copiedId ? 'Copied URL!' : 'Share tracking url'}
+                        {copiedId === activeOrder.id ? 'Copied link!' : 'Share tracking link'}
                         <ExternalLink className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
                 ) : null}
 
-                {/* Support hotline assistance */}
-                <div className="bg-slate-900 text-white rounded-2xl p-4 text-left space-y-3 shadow-md">
-                  <div className="flex gap-2 items-center">
-                    <div className="h-6 w-6 rounded bg-slate-800 flex items-center justify-center text-blue-400">
+                <div className="space-y-3 rounded-2xl bg-slate-900 p-4 text-white shadow-md">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded bg-slate-800 text-blue-400">
                       <PhoneCall className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold font-display">Need courier assistance?</span>
+                    <span className="text-xs font-bold">Need delivery support?</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Have questions about specific delivery coordinates or schedules? Contact support directly.
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Questions about the delivery status or ETA? Contact the support line below.
                   </p>
-                  <a href="tel:+234800SENDIE" className="block text-center bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 text-xs font-bold transition-all shadow-sm">
-                    Contact Hotline
+                  <a
+                    href="tel:+234800SENDIE"
+                    className="block rounded-lg bg-blue-600 py-2 text-center text-xs font-bold text-white transition-colors hover:bg-blue-500"
+                  >
+                    Contact support
                   </a>
                 </div>
-
               </div>
 
-              {/* Mobile screen footer bottom bar notch */}
-              <div className="bg-white border-t border-slate-200 p-3 flex justify-center items-center">
-                <div className="w-24 h-1 bg-slate-300 rounded-full"></div>
+              <div className="flex justify-center border-t border-slate-200 bg-white p-3">
+                <div className="h-1 w-24 rounded-full bg-slate-300" />
               </div>
-
             </div>
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

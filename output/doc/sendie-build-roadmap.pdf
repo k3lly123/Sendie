@@ -1,0 +1,177 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [ 4 0 R 6 0 R ] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 2840 >>
+stream
+BT
+/F1 20 Tf
+72 800 Td
+(Sendie Build Roadmap) Tj
+/F1 10 Tf
+0 -18 Td
+(Detailed build roadmap for making Sendie a paid product for merchants, developers, logistics companies, and admins.) Tj
+/F1 11 Tf
+0 -26 Td
+(Sendie Build Roadmap) Tj
+0 -15 Td
+0 -14 Td
+(Purpose) Tj
+0 -15 Td
+(Turn Sendie into a product that merchants, developers, startups, and logistics companies can) Tj
+0 -15 Td
+(reliably pay for. The roadmap focuses on monetization, role-specific workflows, Africa-first) Tj
+0 -15 Td
+(usability, and operational trust.) Tj
+0 -15 Td
+0 -14 Td
+(Target Segments) Tj
+0 -15 Td
+(- Merchants: simple order creation, tracking, customer communication, and payments.) Tj
+0 -15 Td
+(- Developers/Startups: APIs, docs, webhooks, request health, and sandbox testing.) Tj
+0 -15 Td
+(- Logistics Companies: dispatch board, rider assignment, live tracking, and proofs of) Tj
+0 -15 Td
+(delivery.) Tj
+0 -15 Td
+(- Admins: platform monitoring, billing control, usage oversight, and workspace reset tools.) Tj
+0 -15 Td
+0 -14 Td
+(Roadmap Phases) Tj
+0 -15 Td
+(- Phase 1 - Monetization and core trust: real billing, plan limits, invoices, and payment) Tj
+0 -15 Td
+(webhooks.) Tj
+0 -15 Td
+(- Phase 2 - Merchant simplicity: faster order creation, tracking links, customer alerts, and) Tj
+0 -15 Td
+(mobile-first flow.) Tj
+0 -15 Td
+(- Phase 3 - Developer portal: API keys, webhook logs, docs, request metrics, and integration) Tj
+0 -15 Td
+(samples.) Tj
+0 -15 Td
+(- Phase 4 - Logistics operations: rider assignment, live GPS-lite, map view, geofencing, and) Tj
+0 -15 Td
+(proof of delivery.) Tj
+0 -15 Td
+(- Phase 5 - Admin and scale: reporting, audit logs, support tools, SLA monitoring, and) Tj
+0 -15 Td
+(tenant controls.) Tj
+0 -15 Td
+0 -14 Td
+(Africa-First Requirements) Tj
+0 -15 Td
+(- Naira pricing and local payment rails such as Paystack or Flutterwave.) Tj
+0 -15 Td
+(- WhatsApp and SMS notifications for delivery events and billing events.) Tj
+0 -15 Td
+(- Low-bandwidth UI with fewer heavy animations and smaller payloads.) Tj
+0 -15 Td
+(- Landmark-friendly addresses and mobile-first forms for local logistics.) Tj
+0 -15 Td
+(- Optional live GPS only for active deliveries and premium logistics plans.) Tj
+0 -15 Td
+0 -14 Td
+(What Makes It Payable) Tj
+0 -15 Td
+(- Reliable delivery workflow that saves time every day.) Tj
+0 -15 Td
+(- Clear role-based experience so each customer sees only what they need.) Tj
+0 -15 Td
+(- Billing and usage limits that align value with price.) Tj
+0 -15 Td
+(- Operational trust through notifications, logs, and admin controls.) Tj
+0 -15 Td
+0 -14 Td
+(Recommended Next Build Order) Tj
+0 -15 Td
+(- 1. Ship real subscriptions and webhooks.) Tj
+0 -15 Td
+(- 2. Make the merchant flow even simpler.) Tj
+0 -15 Td
+/F1 9 Tf
+0 -12 Td
+(Page 1 of 2) Tj
+ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1227 >>
+stream
+BT
+/F1 20 Tf
+72 800 Td
+(Sendie Build Roadmap) Tj
+/F1 10 Tf
+0 -18 Td
+(Detailed build roadmap for making Sendie a paid product for merchants, developers, logistics companies, and admins.) Tj
+/F1 11 Tf
+0 -26 Td
+(- 3. Add WhatsApp/SMS alerts.) Tj
+0 -15 Td
+(- 4. Add developer request logs and webhook views.) Tj
+0 -15 Td
+(- 5. Add logistics GPS-lite and rider assignment.) Tj
+0 -15 Td
+(- 6. Finish admin monitoring and support tooling.) Tj
+0 -15 Td
+0 -14 Td
+(Pricing Direction) Tj
+0 -15 Td
+(- Free: test workspace and low-volume trial use.) Tj
+0 -15 Td
+(- Starter: small merchants and shops.) Tj
+0 -15 Td
+(- Pro: developers, startups, and growing businesses.) Tj
+0 -15 Td
+(- Business: logistics companies and teams needing operational control.) Tj
+0 -15 Td
+(- Enterprise: custom pricing, support, and integrations.) Tj
+0 -15 Td
+0 -14 Td
+(Decision Summary) Tj
+0 -15 Td
+(Sendie is worth building toward a paid product if we complete billing, Africa-first) Tj
+0 -15 Td
+(communications, and logistics-grade tracking. The current app is a strong foundation, but) Tj
+0 -15 Td
+(the next layer must be monetization plus operational reliability.) Tj
+0 -15 Td
+/F1 9 Tf
+0 -12 Td
+(Page 2 of 2) Tj
+ET
+
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000123 00000 n 
+0000000193 00000 n 
+0000000319 00000 n 
+0000003211 00000 n 
+0000003337 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+4616
+%%EOF

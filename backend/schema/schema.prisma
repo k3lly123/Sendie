@@ -1,0 +1,14 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AppState {
+  id        Int      @id @default(1)
+  payload   Json
+  updatedAt DateTime @updatedAt
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
@@ -24,14 +24,47 @@ interface OrderDetailsPageProps {
   order: Order | null;
   onNavigate: (screen: AppScreen) => void;
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
+  onCaptureProof: (orderId: string, method: 'photo' | 'otp' | 'signature', note?: string) => void;
+  onAssignRider: (orderId: string, body: { name: string; phone?: string; vehicle?: string; accepted?: boolean }) => void;
+  onLogException: (orderId: string, body: { type: 'address_issue' | 'customer_unreachable' | 'delay' | 'failed_pickup' | 'weather' | 'other'; note?: string; status?: 'open' | 'resolved' }) => void;
+  onUpdateGps: (orderId: string, body: { enabled?: boolean; lastKnownLocation?: string; signal?: 'good' | 'weak' | 'offline' }) => void;
   onCancelOrder: (orderId: string) => void;
   onShowToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
 }
 
-export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, onCancelOrder, onShowToast }: OrderDetailsPageProps) {
+export default function OrderDetailsPage({
+  order,
+  onNavigate,
+  onUpdateStatus,
+  onCaptureProof,
+  onAssignRider,
+  onLogException,
+  onUpdateGps,
+  onCancelOrder,
+  onShowToast,
+}: OrderDetailsPageProps) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+  const [proofMethod, setProofMethod] = useState<'photo' | 'otp' | 'signature'>('photo');
+  const [proofNote, setProofNote] = useState('');
+  const [riderName, setRiderName] = useState(order?.riderAssignment?.name || '');
+  const [riderPhone, setRiderPhone] = useState(order?.riderAssignment?.phone || '');
+  const [riderVehicle, setRiderVehicle] = useState(order?.riderAssignment?.vehicle || '');
+  const [gpsLocation, setGpsLocation] = useState(order?.gpsTracking?.lastKnownLocation || '');
+  const [gpsSignal, setGpsSignal] = useState<'good' | 'weak' | 'offline'>(order?.gpsTracking?.signal || 'good');
+  const [exceptionType, setExceptionType] = useState<'address_issue' | 'customer_unreachable' | 'delay' | 'failed_pickup' | 'weather' | 'other'>('delay');
+  const [exceptionNote, setExceptionNote] = useState('');
+
+  useEffect(() => {
+    setRiderName(order?.riderAssignment?.name || '');
+    setRiderPhone(order?.riderAssignment?.phone || '');
+    setRiderVehicle(order?.riderAssignment?.vehicle || '');
+    setGpsLocation(order?.gpsTracking?.lastKnownLocation || '');
+    setGpsSignal(order?.gpsTracking?.signal || 'good');
+    setExceptionType(order?.deliveryException?.type || 'delay');
+    setExceptionNote(order?.deliveryException?.note || '');
+  }, [order]);
 
   if (!order) {
     return (
@@ -66,15 +99,61 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
     }, 400);
   };
 
+  const handleProofCapture = () => {
+    setUpdating(true);
+    setTimeout(() => {
+      onCaptureProof(order.id, proofMethod, proofNote || undefined);
+      setUpdating(false);
+    }, 400);
+  };
+
+  const handleAssignRider = () => {
+    if (!riderName.trim()) return;
+    setUpdating(true);
+    setTimeout(() => {
+      onAssignRider(order.id, {
+        name: riderName,
+        phone: riderPhone || undefined,
+        vehicle: riderVehicle || undefined,
+        accepted: true,
+      });
+      setUpdating(false);
+    }, 400);
+  };
+
+  const handleLogException = () => {
+    setUpdating(true);
+    setTimeout(() => {
+      onLogException(order.id, {
+        type: exceptionType,
+        note: exceptionNote || undefined,
+        status: 'open',
+      });
+      setUpdating(false);
+    }, 400);
+  };
+
+  const handleGpsUpdate = () => {
+    setUpdating(true);
+    setTimeout(() => {
+      onUpdateGps(order.id, {
+        enabled: true,
+        lastKnownLocation: gpsLocation || undefined,
+        signal: gpsSignal,
+      });
+      setUpdating(false);
+    }, 400);
+  };
+
   // Timeline steps computation
   const statusValues: OrderStatus[] = ['Pending', 'Picked Up', 'In Transit', 'Delivered'];
   const currentIndex = statusValues.indexOf(order.status === 'Failed' ? 'Pending' : order.status);
 
   const stepsDetails = [
-    { title: 'Order Created', desc: 'Registered in Sendie mesh system', time: '07:15 AM' },
+    { title: 'Order Created', desc: 'Recorded in Sendie', time: '07:15 AM' },
     { title: 'Picked Up', desc: 'Assigned and loaded by local courier', time: '10:05 AM' },
-    { title: 'In Transit', desc: 'Cargo en-route to delivery drop-off', time: '01:40 PM' },
-    { title: 'Delivered', desc: 'Cargo safely received by terminal contact', time: '04:30 PM' },
+    { title: 'In Transit', desc: 'Package is on the way to the drop-off point', time: '01:40 PM' },
+    { title: 'Delivered', desc: 'Package was received by the drop-off contact', time: '04:30 PM' },
   ];
 
   return (
@@ -144,9 +223,9 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
                     }
                     onNavigate('orders');
                   }}
-                  className="cursor-pointer bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2 px-3 rounded-lg shadow transition-all"
+                  className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700"
                 >
-                  Confirm Delete
+                  Confirm cancel
                 </button>
                 <button
                   onClick={() => setShowConfirmCancel(false)}
@@ -163,7 +242,7 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Side: Information Card */}
-          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl shadow-premium p-6 space-y-6">
+          <div className="lg:col-span-7 space-y-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
             
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Logistics Details</h3>
@@ -175,7 +254,7 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
                     <Package className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Cargo Cargo Item</p>
+                    <p className="text-[10px] font-bold uppercase leading-none text-slate-400">Package item</p>
                     <p className="text-sm font-semibold text-slate-800 mt-1">{order.itemDescription}</p>
                   </div>
                 </div>
@@ -213,6 +292,20 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
                     <p className="text-xs font-semibold text-slate-700 mt-1">{order.deliveryLocation}</p>
                   </div>
                 </div>
+
+                {(order.dropOffContactName || order.dropOffLandmark) && (
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 flex-shrink-0">
+                      <Smartphone className="h-4.5 w-4.5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Drop-off contact / landmark</p>
+                      <p className="text-xs font-semibold text-slate-700 mt-1">{order.dropOffContactName || 'No contact provided'}</p>
+                      {order.dropOffContactPhone && <p className="text-[11px] text-slate-500 mt-1 font-mono">{order.dropOffContactPhone}</p>}
+                      {order.dropOffLandmark && <p className="text-[11px] text-slate-500 mt-1">{order.dropOffLandmark}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -222,6 +315,10 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
               <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3 italic">
                 {order.notes || 'No special instructions recorded.'}
               </p>
+              <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                <p className="font-bold text-slate-900">GPS</p>
+                <p className="mt-1">GPS-lite is available for active deliveries. Rider assignment, proof of delivery, and exceptions are managed in the sections below.</p>
+              </div>
             </div>
 
             {/* STAGE-BASED STATUS MODIFIERS */}
@@ -231,8 +328,8 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
                 {updating && <span className="text-[10px] font-semibold text-blue-600 animate-pulse">Updating...</span>}
               </div>
               
-              <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
-                Step through the cargo life events to test the dynamic client tracking page.
+              <p className="mb-4 text-[11px] leading-relaxed text-slate-400">
+                Review the tracking events that were recorded for this order.
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -249,28 +346,127 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
               </div>
             </div>
 
+            <div className="border-t border-slate-100 pt-5">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Proof of delivery</h4>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  {order.proofOfDelivery?.status === 'captured' ? 'Captured' : 'Pending'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {(['photo', 'otp', 'signature'] as const).map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => setProofMethod(method)}
+                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                      proofMethod === method ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {method.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                <input
+                  value={proofNote}
+                  onChange={(e) => setProofNote(e.target.value)}
+                  placeholder="Optional proof note, OTP ref, or photo note"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={handleProofCapture}
+                  className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-70"
+                >
+                  Capture proof
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Rider assignment</h4>
+                  <span className={`text-[10px] font-semibold ${order.riderAssignment?.status === 'accepted' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {order.riderAssignment?.status || 'unassigned'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <input value={riderName} onChange={(e) => setRiderName(e.target.value)} placeholder="Rider name" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" />
+                  <input value={riderPhone} onChange={(e) => setRiderPhone(e.target.value)} placeholder="Rider phone" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" />
+                  <input value={riderVehicle} onChange={(e) => setRiderVehicle(e.target.value)} placeholder="Vehicle / bike" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" />
+                </div>
+                <button type="button" disabled={updating} onClick={handleAssignRider} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-70">
+                  Assign rider
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">GPS-lite</h4>
+                  <span className="text-[10px] font-semibold text-slate-400">{order.gpsTracking?.enabled ? 'On' : 'Off'}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input value={gpsLocation} onChange={(e) => setGpsLocation(e.target.value)} placeholder="Last known location" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" />
+                  <select value={gpsSignal} onChange={(e) => setGpsSignal(e.target.value as 'good' | 'weak' | 'offline')} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                    <option value="good">Good signal</option>
+                    <option value="weak">Weak signal</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
+                <button type="button" disabled={updating} onClick={handleGpsUpdate} className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-70">
+                  Update GPS-lite
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">Delivery exception</h4>
+                  <span className="text-[10px] font-semibold text-amber-700">{order.deliveryException?.status || 'resolved'}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <select value={exceptionType} onChange={(e) => setExceptionType(e.target.value as typeof exceptionType)} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs">
+                    <option value="delay">Delay</option>
+                    <option value="address_issue">Address issue</option>
+                    <option value="customer_unreachable">Customer unreachable</option>
+                    <option value="failed_pickup">Failed pickup</option>
+                    <option value="weather">Weather</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input value={exceptionNote} onChange={(e) => setExceptionNote(e.target.value)} placeholder="Exception note" className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs" />
+                </div>
+                <button type="button" disabled={updating} onClick={handleLogException} className="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-70">
+                  Log exception
+                </button>
+              </div>
+            </div>
+
           </div>
 
-          {/* Right Side: Timeline Steps progress trace */}
-          <div className="lg:col-span-5 bg-[#FAFBFD] border border-slate-200 rounded-xl p-6">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-6">Delivery status log</h3>
+          {/* Timeline steps */}
+          <div className="lg:col-span-5 rounded-[28px] border border-slate-200 bg-[#FAFBFD] p-6">
+            <h3 className="mb-6 text-xs font-bold uppercase tracking-widest text-slate-800">Delivery status log</h3>
 
             {order.status === 'Failed' ? (
-              <div className="border border-red-200 bg-red-50 rounded-xl p-4 flex gap-3 text-red-800 mb-6">
+              <div className="mb-6 flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
                 <AlertOctagon className="h-5 w-5 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-bold">Courier Shipment Failed</p>
                   <p className="text-[11px] text-red-600 mt-1 leading-relaxed">
-                    The recipient was unreachable after several automated call attempts. Shipments are being re-routed to the primary sorting office.
+                    The delivery was marked as failed after the latest update. Check the notes and contact details before retrying.
                   </p>
                 </div>
               </div>
             ) : null}
 
             {/* Connected timeline steps flow */}
-            <div className="relative pl-6 space-y-6">
+            <div className="relative space-y-6 pl-6">
               {/* Thread line line graphic */}
-              <div className="absolute left-3 top-2.5 bottom-2 w-[1.5px] bg-slate-200"></div>
+              <div className="absolute bottom-2 top-2.5 left-3 w-[1.5px] bg-slate-200" />
 
               {stepsDetails.map((step, idx) => {
                 const active = idx <= currentIndex && order.status !== 'Failed';
@@ -322,7 +518,7 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-2xl tracking-wider text-slate-900 uppercase font-mono">Sendie Logistics</span>
             </div>
-            <p className="text-[11px] text-slate-500 font-mono mt-1">Cargo Transit Network • Hub Sandbox Terminal</p>
+            <p className="text-[11px] text-slate-500 font-mono mt-1">Sendie delivery workspace</p>
             <p className="text-[10px] text-slate-400 mt-0.5">Automated Dispatcher Portal</p>
           </div>
           <div className="text-right">
@@ -340,7 +536,7 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
             <h3 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Merchant / Shipper</h3>
             <p className="font-bold text-xs text-slate-850">Delta Commerce</p>
             <p className="text-[11px] text-slate-500 mt-0.5">omoregiekellyking85@gmail.com</p>
-            <p className="text-[11px] text-slate-400 mt-1">Channel status: Evaluated sandbox sandbox</p>
+            <p className="text-[11px] text-slate-400 mt-1">Channel status: connected to the current workspace</p>
           </div>
           <div>
             <h3 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Recipient Contact</h3>
@@ -349,7 +545,7 @@ export default function OrderDetailsPage({ order, onNavigate, onUpdateStatus, on
           </div>
         </div>
 
-        {/* Manifest Cargo Segment */}
+        {/* Delivery summary */}
         <div className="mb-6">
           <h3 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">Package Item & Log description</h3>
           <table className="w-full text-left font-sans text-xs">

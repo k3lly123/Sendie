@@ -7,11 +7,40 @@ export interface Order {
   itemDescription: string;
   pickupLocation: string;
   deliveryLocation: string;
+  dropOffContactName?: string;
+  dropOffContactPhone?: string;
+  dropOffLandmark?: string;
   status: OrderStatus;
   createdDate: string;
   estimatedDelivery: string;
   trackingLink: string;
   notes?: string;
+  proofOfDelivery?: {
+    method: 'photo' | 'otp' | 'signature';
+    status: 'pending' | 'captured';
+    note?: string;
+    capturedAt?: string;
+  };
+  riderAssignment?: {
+    name: string;
+    phone?: string;
+    vehicle?: string;
+    status: 'unassigned' | 'assigned' | 'accepted';
+    assignedAt?: string;
+  };
+  deliveryException?: {
+    type: 'address_issue' | 'customer_unreachable' | 'delay' | 'failed_pickup' | 'weather' | 'other';
+    status: 'open' | 'resolved';
+    note?: string;
+    raisedAt?: string;
+    resolvedAt?: string;
+  };
+  gpsTracking?: {
+    enabled: boolean;
+    lastKnownLocation?: string;
+    lastUpdatedAt?: string;
+    signal?: 'good' | 'weak' | 'offline';
+  };
 }
 
 export interface Customer {
@@ -38,11 +67,34 @@ export interface ApiUsageStats {
   failedRequests: number;
 }
 
+export interface BillingState {
+  plan: string;
+  shipmentsUsed: number;
+  shipmentsLimit: number;
+  monthlyRevenue: number;
+  paymentStatus: 'active' | 'trialing' | 'past_due' | 'pending';
+  paymentProvider: 'flutterwave' | 'altixpay' | 'manual';
+}
+
+export interface Invoice {
+  id: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  status: 'draft' | 'pending' | 'paid' | 'failed';
+  createdAt: string;
+  dueAt: string;
+  paidAt?: string;
+  provider?: 'flutterwave' | 'altixpay' | 'manual';
+  providerReference?: string;
+  checkoutUrl?: string;
+}
+
 export interface UserSession {
   isLoggedIn: boolean;
   businessName: string;
   email: string;
-  accountType: 'Merchant' | 'Startup' | 'Developer';
+  accountType: 'Merchant' | 'Developer/Startup' | 'Logistics Company' | 'Admin';
 }
 
 export interface Notification {
@@ -65,4 +117,5 @@ export type AppScreen =
   | 'api'
   | 'api-docs'
   | 'settings'
-  | 'billing';
+  | 'billing'
+  | 'public-tracking';
