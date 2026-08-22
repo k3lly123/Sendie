@@ -19,11 +19,10 @@ Sendie is a merchant shipping dashboard built with React, TypeScript, Tailwind C
    copy .env.example .env
    ```
 3. Update `DIRECT_URL` and `DATABASE_URL` in `.env` to point at your PostgreSQL database.
-4. Add your Flutterwave keys if you want real hosted checkout:
-   - `FLUTTERWAVE_SECRET_KEY`
-   - `FLUTTERWAVE_SECRET_HASH`
+4. Add your Paystack key if you want real hosted checkout:
+   - `PAYSTACK_SECRET_KEY`
    - `APP_URL`
-   - `SENDIE_PAYMENT_PROVIDER=flutterwave`
+   - `SENDIE_PAYMENT_PROVIDER=paystack`
 5. Create the Prisma client and push the schema:
    ```bash
    npm run db:generate
@@ -54,6 +53,6 @@ npm run build
 
 - The backend stores Sendie workspace state in PostgreSQL through Prisma.
 - Prisma manages the Postgres connection and the `app_state` table.
-- Billing uses hosted Flutterwave checkout, transaction verification, and webhooks when the provider keys are configured.
-- AltixPay is scaffolded as a future adapter, but Flutterwave is the active payment path.
+- Billing uses hosted Paystack checkout, transaction verification, and webhooks when the provider key is configured.
+- AltixPay is scaffolded as a future adapter, but Paystack is the active payment path.
 - `npm run lint` runs the TypeScript check for the frontend.

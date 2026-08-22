@@ -204,8 +204,8 @@ export const api = {
       request<{ invoice: Invoice; workspace: WorkspaceSnapshot }>(`/billing/invoices/${invoiceId}/pay`, {
         method: 'PATCH',
       }),
-    verifyFlutterwave: (body: { transactionId: string; invoiceId?: string; txRef?: string }) =>
-      request<{ invoice: Invoice; workspace: WorkspaceSnapshot }>('/billing/flutterwave/verify', {
+    verifyPaystack: (body: { reference: string; invoiceId?: string }) =>
+      request<{ invoice: Invoice; workspace: WorkspaceSnapshot }>('/billing/paystack/verify', {
         method: 'POST',
         body: JSON.stringify(body),
       }),

@@ -205,18 +205,17 @@ export default function App() {
       syncWorkspace(session.workspace);
       if (!window.location.pathname.startsWith('/track/')) {
         const searchParams = new URLSearchParams(window.location.search);
-        const transactionId = searchParams.get('transaction_id') || searchParams.get('transactionId') || '';
-        const txRef = searchParams.get('tx_ref') || searchParams.get('txRef') || '';
+        const reference = searchParams.get('reference') || '';
         const invoiceId = searchParams.get('invoice') || searchParams.get('invoiceId') || '';
 
-        if (transactionId) {
+        if (reference) {
           try {
-            const result = await api.billing.verifyFlutterwave({ transactionId, txRef: txRef || undefined, invoiceId: invoiceId || undefined });
+            const result = await api.billing.verifyPaystack({ reference, invoiceId: invoiceId || undefined });
             syncWorkspace(result.workspace);
             setCurrentScreen('billing');
             setAppPath('billing');
             window.history.replaceState({}, '', '/');
-            showToast('Flutterwave payment verified.', 'success');
+            showToast('Paystack payment verified.', 'success');
             return;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to verify payment';
@@ -421,7 +420,7 @@ export default function App() {
       const result = await api.billing.checkout(plan);
       syncWorkspace(result.workspace);
       if (result.checkoutUrl) {
-        showToast(`Redirecting to Flutterwave for ${plan}.`, 'info');
+        showToast(`Redirecting to Paystack for ${plan}.`, 'info');
         window.location.assign(result.checkoutUrl);
         return;
       }

@@ -7,10 +7,9 @@ import type { StoredApiKey, StoredCustomer, StoredInvoice, StoredNotification, S
 
 const app = express();
 const authSecret = process.env.SENDIE_AUTH_SECRET || process.env.JWT_SECRET || 'sendie-dev-secret';
-const flutterwaveSecretKey = process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLW_SECRET_KEY || '';
-const flutterwaveSecretHash = process.env.FLUTTERWAVE_SECRET_HASH || process.env.FLW_SECRET_HASH || '';
-const flutterwavePublicUrl = (process.env.APP_URL || process.env.SENDIE_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
-const paymentProvider = (process.env.SENDIE_PAYMENT_PROVIDER || 'flutterwave').toLowerCase();
+const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || '';
+const paystackPublicUrl = (process.env.APP_URL || process.env.SENDIE_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+const paymentProvider = (process.env.SENDIE_PAYMENT_PROVIDER || 'paystack').toLowerCase();
 
 app.disable('x-powered-by');
 app.use(
@@ -23,7 +22,7 @@ app.use(
 );
 app.use((_, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, verif-hash, flutterwave-signature');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, x-paystack-signature');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   next();
 });
@@ -177,7 +176,7 @@ const billingPlans: Record<string, BillingPlan> = {
 
 const getBillingPlan = (plan: string) => billingPlans[plan] || billingPlans.Free;
 
-const createInvoice = (userId: string, plan: string, options?: { provider?: 'flutterwave' | 'altixpay' | 'manual'; providerReference?: string; checkoutUrl?: string }) => {
+const createInvoice = (userId: string, plan: string, options?: { provider?: 'paystack' | 'altixpay' | 'manual'; providerReference?: string; checkoutUrl?: string }) => {
   const planDetails = getBillingPlan(plan);
   const invoice: StoredInvoice = {
     id: `INV-${Date.now()}`,
@@ -189,7 +188,7 @@ const createInvoice = (userId: string, plan: string, options?: { provider?: 'flu
     createdAt: new Date().toISOString(),
     dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     paidAt: planDetails.amount === 0 ? new Date().toISOString() : undefined,
-    provider: options?.provider || (planDetails.amount === 0 ? 'manual' : 'flutterwave'),
+    provider: options?.provider || (planDetails.amount === 0 ? 'manual' : 'paystack'),
     providerReference: options?.providerReference,
     checkoutUrl: options?.checkoutUrl,
   };
@@ -204,7 +203,7 @@ const createInvoice = (userId: string, plan: string, options?: { provider?: 'flu
       state.billing.paymentProvider = options?.provider || 'manual';
     } else {
       state.billing.paymentStatus = 'pending';
-      state.billing.paymentProvider = options?.provider || 'flutterwave';
+      state.billing.paymentProvider = options?.provider || 'paystack';
     }
   });
 
@@ -235,60 +234,53 @@ const activateInvoice = (userId: string, invoiceId: string) => {
     draft.billing.shipmentsLimit = planDetails.shipmentsLimit;
     draft.billing.monthlyRevenue = invoice.amount;
     draft.billing.paymentStatus = 'active';
-    draft.billing.paymentProvider = invoice.provider || 'flutterwave';
+    draft.billing.paymentProvider = invoice.provider || 'paystack';
   });
 
   return updated.invoices.find((entry) => entry.userId === userId && entry.id === invoiceId);
 };
 
-const isValidFlutterwaveWebhook = (rawBody: string, signature?: string | string[]) => {
-  if (!flutterwaveSecretHash || !signature || typeof signature !== 'string') {
+const isValidPaystackWebhook = (rawBody: string, signature?: string | string[]) => {
+  if (!paystackSecretKey || !signature || typeof signature !== 'string') {
     return false;
   }
 
-  const expected = createHmac('sha256', flutterwaveSecretHash).update(rawBody).digest('base64');
-  return expected === signature || expected === signature.replace(/\s+/g, '');
+  const expected = createHmac('sha512', paystackSecretKey).update(rawBody).digest('hex');
+  return expected === signature;
 };
 
-const createFlutterwaveCheckout = async (params: {
+const createPaystackCheckout = async (params: {
   user: StoredUser;
   invoice: StoredInvoice;
 }) => {
-  if (!flutterwaveSecretKey) {
+  if (!paystackSecretKey) {
     return null;
   }
 
-  const txRef = `${params.invoice.id}-${Date.now()}`;
-  const response = await fetch('https://api.flutterwave.com/v3/payments', {
+  const reference = `${params.invoice.id}-${Date.now()}`;
+  const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${flutterwaveSecretKey}`,
+      Authorization: `Bearer ${paystackSecretKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      amount: params.invoice.amount,
-      tx_ref: txRef,
+      amount: params.invoice.amount * 100,
+      reference,
       currency: params.invoice.currency,
-      redirect_url: `${flutterwavePublicUrl}/?checkout=completed&invoice=${params.invoice.id}`,
-      customer: {
-        email: params.user.email,
-        name: params.user.businessName,
-      },
-      customizations: {
-        title: 'Sendie subscription checkout',
-        description: `${params.invoice.plan} plan on Sendie`,
-        logo: `${flutterwavePublicUrl}/favicon.ico`,
-      },
+      email: params.user.email,
+      callback_url: `${paystackPublicUrl}/?checkout=completed&invoice=${params.invoice.id}`,
+      metadata: { invoiceId: params.invoice.id, plan: params.invoice.plan },
     }),
   });
 
-  const payload = (await response.json().catch(() => null)) as { status?: string; data?: { link?: string } } | null;
+  const payload = (await response.json().catch(() => null)) as { status?: boolean; data?: { authorization_url?: string; reference?: string } } | null;
 
-  if (!response.ok || payload?.status !== 'success' || !payload.data?.link) {
-    throw new Error('Flutterwave checkout could not be created');
+  if (!response.ok || payload?.status !== true || !payload.data?.authorization_url) {
+    throw new Error('Paystack checkout could not be created');
   }
 
-  return { checkoutUrl: payload.data.link, providerReference: txRef };
+  return { checkoutUrl: payload.data.authorization_url, providerReference: payload.data.reference || reference };
 };
 
 const findTrackingOrder = (state: ReturnType<typeof getState>, trackingId: string) =>
@@ -958,23 +950,23 @@ app.post('/api/billing/checkout', authenticate, async (req: AuthenticatedRequest
     return sendError(res, 501, 'AltixPay checkout is not configured yet. Add the provider credentials to enable it.', 'PAYMENT_PROVIDER_UNAVAILABLE');
   }
 
-  const invoiceDraft = createInvoice(req.user!.id, selectedPlan, { provider: flutterwaveSecretKey ? 'flutterwave' : 'manual' });
+  const invoiceDraft = createInvoice(req.user!.id, selectedPlan, { provider: paystackSecretKey ? 'paystack' : 'manual' });
   let checkoutUrl: string | undefined;
 
   try {
-    const checkout = await createFlutterwaveCheckout({ user: req.user!, invoice: invoiceDraft });
+    const checkout = await createPaystackCheckout({ user: req.user!, invoice: invoiceDraft });
     if (checkout) {
       checkoutUrl = checkout.checkoutUrl;
       updateState((draft) => {
         draft.invoices = draft.invoices.map((entry) =>
           entry.userId === req.user!.id && entry.id === invoiceDraft.id
-            ? { ...entry, provider: 'flutterwave', providerReference: checkout.providerReference, checkoutUrl: checkout.checkoutUrl }
+            ? { ...entry, provider: 'paystack', providerReference: checkout.providerReference, checkoutUrl: checkout.checkoutUrl }
             : entry,
         );
       });
     }
   } catch (error) {
-    console.error('Flutterwave checkout creation failed:', error);
+    console.error('Paystack checkout creation failed:', error);
   }
 
   appendNotification(req.user!.id, `Checkout session created for ${invoiceDraft.plan}.`);
@@ -1007,16 +999,16 @@ app.patch('/api/billing/invoices/:id/pay', authenticate, (req: AuthenticatedRequ
   return sendSuccess(res, 'Invoice marked paid', { invoice: { ...updatedInvoice, userId: undefined }, workspace });
 });
 
-app.post('/api/billing/flutterwave/verify', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  const body = req.body as { transactionId?: string; txRef?: string; invoiceId?: string };
-  if (!body.transactionId) {
-    return sendError(res, 400, 'transactionId is required', 'VALIDATION_ERROR');
+app.post('/api/billing/paystack/verify', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  const body = req.body as { reference?: string; invoiceId?: string };
+  if (!body.reference) {
+    return sendError(res, 400, 'reference is required', 'VALIDATION_ERROR');
   }
 
   const state = getState();
   const invoice =
     (body.invoiceId && state.invoices.find((entry) => entry.userId === req.user!.id && entry.id === body.invoiceId)) ||
-    (body.txRef && state.invoices.find((entry) => entry.userId === req.user!.id && entry.providerReference === body.txRef)) ||
+    state.invoices.find((entry) => entry.userId === req.user!.id && entry.providerReference === body.reference) ||
     undefined;
 
   if (!invoice) {
@@ -1028,38 +1020,38 @@ app.post('/api/billing/flutterwave/verify', authenticate, async (req: Authentica
     return sendSuccess(res, 'Invoice already paid', { invoice: { ...invoice, userId: undefined }, workspace });
   }
 
-  if (!flutterwaveSecretKey) {
-    return sendError(res, 503, 'Flutterwave is not configured', 'PAYMENT_PROVIDER_UNAVAILABLE');
+  if (!paystackSecretKey) {
+    return sendError(res, 503, 'Paystack is not configured', 'PAYMENT_PROVIDER_UNAVAILABLE');
   }
 
-  const response = await fetch(`https://api.flutterwave.com/v3/transactions/${body.transactionId}/verify`, {
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(body.reference)}`, {
     headers: {
-      Authorization: `Bearer ${flutterwaveSecretKey}`,
+      Authorization: `Bearer ${paystackSecretKey}`,
       'Content-Type': 'application/json',
     },
   });
 
   const payload = (await response.json().catch(() => null)) as
     | {
-        status?: string;
+        status?: boolean;
         data?: {
           status?: string;
-          tx_ref?: string;
+          reference?: string;
           amount?: number;
           currency?: string;
         };
       }
     | null;
 
-  if (!response.ok || payload?.status !== 'success' || payload.data?.status !== 'successful') {
+  if (!response.ok || payload?.status !== true || payload.data?.status !== 'success') {
     return sendError(res, 402, 'Payment verification did not succeed', 'PAYMENT_NOT_VERIFIED');
   }
 
-  if (payload.data.tx_ref && invoice.providerReference && payload.data.tx_ref !== invoice.providerReference) {
+  if (payload.data.reference && invoice.providerReference && payload.data.reference !== invoice.providerReference) {
     return sendError(res, 400, 'Transaction reference does not match this invoice', 'PAYMENT_REFERENCE_MISMATCH');
   }
 
-  if (payload.data.amount !== invoice.amount || payload.data.currency !== invoice.currency) {
+  if (payload.data.amount !== invoice.amount * 100 || payload.data.currency !== invoice.currency) {
     return sendError(res, 400, 'Payment amount or currency does not match this invoice', 'PAYMENT_AMOUNT_MISMATCH');
   }
 
@@ -1068,7 +1060,7 @@ app.post('/api/billing/flutterwave/verify', authenticate, async (req: Authentica
     return sendError(res, 404, 'Invoice not found', 'INVOICE_NOT_FOUND');
   }
 
-  pushWebhookEvent(req.user!.id, 'billing.invoice.paid', 'flutterwave', { invoiceId: invoice.id, plan: invoice.plan, amount: invoice.amount }, 'delivered');
+  pushWebhookEvent(req.user!.id, 'billing.invoice.paid', 'paystack', { invoiceId: invoice.id, plan: invoice.plan, amount: invoice.amount }, 'delivered');
   appendNotification(req.user!.id, `Invoice ${invoice.id} was verified and activated.`);
   const workspace = toWorkspaceSnapshot(getState(), req.user!.id);
   updateUsageAfterSuccess();
@@ -1076,11 +1068,11 @@ app.post('/api/billing/flutterwave/verify', authenticate, async (req: Authentica
   return sendSuccess(res, 'Payment verified', { invoice: { ...activatedInvoice, userId: undefined }, workspace });
 });
 
-app.post('/api/billing/flutterwave/webhook', async (req: Request, res: Response) => {
-  const signature = req.header('verif-hash') || req.header('flutterwave-signature');
+app.post('/api/billing/paystack/webhook', async (req: Request, res: Response) => {
+  const signature = req.header('x-paystack-signature');
   const rawBody = (req as Request & { rawBody?: string }).rawBody || '';
 
-  if (!isValidFlutterwaveWebhook(rawBody, signature)) {
+  if (!isValidPaystackWebhook(rawBody, signature)) {
     return res.status(401).end();
   }
 
@@ -1088,54 +1080,49 @@ app.post('/api/billing/flutterwave/webhook', async (req: Request, res: Response)
     event?: string;
     data?: {
       id?: number | string;
-      tx_ref?: string;
+      reference?: string;
       amount?: number;
       currency?: string;
       status?: string;
     };
   };
 
-  const transactionId = payload.data?.id?.toString();
-  const txRef = payload.data?.tx_ref;
-  if (!transactionId && !txRef) {
+  const reference = payload.data?.reference;
+  if (!reference) {
     return res.status(200).end();
   }
 
   const state = getState();
-  const invoice = (txRef && state.invoices.find((entry) => entry.providerReference === txRef)) || undefined;
+  const invoice = state.invoices.find((entry) => entry.providerReference === reference);
 
   if (!invoice) {
     return res.status(200).end();
   }
 
-  if (!transactionId) {
-    return res.status(200).end();
-  }
-
-  const response = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: {
-      Authorization: `Bearer ${flutterwaveSecretKey}`,
+      Authorization: `Bearer ${paystackSecretKey}`,
       'Content-Type': 'application/json',
     },
   });
 
   const verification = (await response.json().catch(() => null)) as
     | {
-        status?: string;
+        status?: boolean;
         data?: {
           status?: string;
-          tx_ref?: string;
+          reference?: string;
           amount?: number;
           currency?: string;
         };
       }
     | null;
 
-  if (response.ok && verification?.status === 'success' && verification.data?.status === 'successful') {
-    if (verification.data.amount === invoice.amount && verification.data.currency === invoice.currency) {
+  if (response.ok && verification?.status === true && verification.data?.status === 'success') {
+    if (verification.data.amount === invoice.amount * 100 && verification.data.currency === invoice.currency) {
       activateInvoice(invoice.userId, invoice.id);
-      pushWebhookEvent(invoice.userId, 'billing.invoice.paid', 'flutterwave-webhook', { invoiceId: invoice.id, plan: invoice.plan, amount: invoice.amount }, 'delivered');
-      appendNotification(invoice.userId, `Invoice ${invoice.id} was confirmed by Flutterwave.`);
+      pushWebhookEvent(invoice.userId, 'billing.invoice.paid', 'paystack-webhook', { invoiceId: invoice.id, plan: invoice.plan, amount: invoice.amount }, 'delivered');
+      appendNotification(invoice.userId, `Invoice ${invoice.id} was confirmed by Paystack.`);
     }
   }
 

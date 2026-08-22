@@ -342,7 +342,6 @@ print(response.json())`,
                 <span>kuda</span>
                 <span>zoho</span>
                 <span>jumia</span>
-                <span>flutterwave</span>
                 <span>paystack</span>
                 <span>gokada</span>
               </div>

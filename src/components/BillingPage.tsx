@@ -57,7 +57,7 @@ export default function BillingPage({
             </span>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed max-w-lg">
-            Billing now uses hosted Flutterwave checkout. {isDeveloper ? 'Developer plans unlock API access, webhooks, and higher request limits.' : isLogistics ? 'Logistics plans unlock dispatch tools, proof capture, and delivery visibility.' : 'Pick a plan, pay through Flutterwave, and the workspace activates automatically.'}
+            Billing now uses hosted Paystack checkout. {isDeveloper ? 'Developer plans unlock API access, webhooks, and higher request limits.' : isLogistics ? 'Logistics plans unlock dispatch tools, proof capture, and delivery visibility.' : 'Pick a plan, pay through Paystack, and the workspace activates automatically.'}
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export default function BillingPage({
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
             {isDeveloper
               ? 'Developer pricing is about API throughput, webhook volume, and support tiers.'
-              : 'Flutterwave handles the payment handoff and returns the user to the workspace when checkout finishes.'}
+              : 'Paystack handles the payment handoff and returns the user to the workspace when checkout finishes.'}
           </div>
         </div>
 

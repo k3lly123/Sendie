@@ -73,7 +73,7 @@ export interface BillingState {
   shipmentsLimit: number;
   monthlyRevenue: number;
   paymentStatus: 'active' | 'trialing' | 'past_due' | 'pending';
-  paymentProvider: 'flutterwave' | 'altixpay' | 'manual';
+  paymentProvider: 'paystack' | 'altixpay' | 'manual';
 }
 
 export interface Invoice {
@@ -85,7 +85,7 @@ export interface Invoice {
   createdAt: string;
   dueAt: string;
   paidAt?: string;
-  provider?: 'flutterwave' | 'altixpay' | 'manual';
+  provider?: 'paystack' | 'altixpay' | 'manual';
   providerReference?: string;
   checkoutUrl?: string;
 }

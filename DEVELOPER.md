@@ -28,7 +28,7 @@ Each role operates in an **independent workspace** with role-specific UI, featur
 - Session-based authentication
 
 **Payment Integration:**
-- Flutterwave (primary payment provider)
+- Paystack (primary payment provider)
 - AltixPay (scaffolded for future use)
 
 ### Project Structure
@@ -203,7 +203,7 @@ interface BillingState {
   shipmentsLimit: number;
   monthlyRevenue: number;
   paymentStatus: 'active' | 'trialing' | 'past_due' | 'pending';
-  paymentProvider: 'flutterwave' | 'altixpay' | 'manual';
+  paymentProvider: 'paystack' | 'altixpay' | 'manual';
 }
 ```
 
@@ -261,10 +261,9 @@ model AppState {
    DIRECT_URL=postgresql://user:password@localhost:5432/sendie_db
    
    # Payment Provider (Optional - for testing without payment)
-   FLUTTERWAVE_SECRET_KEY=your_flutterwave_key
-   FLUTTERWAVE_SECRET_HASH=your_flutterwave_hash
+  PAYSTACK_SECRET_KEY=your_paystack_secret_key
    APP_URL=http://localhost:3000
-   SENDIE_PAYMENT_PROVIDER=flutterwave
+  SENDIE_PAYMENT_PROVIDER=paystack
    ```
 
 4. **Setup database:**
@@ -319,8 +318,9 @@ model AppState {
 
 ### Billing (Merchant & Logistics)
 - `GET /billing` - Get billing state
-- `POST /billing/checkout` - Initialize Flutterwave checkout
-- `POST /billing/webhook` - Handle payment webhooks
+- `POST /billing/checkout` - Initialize Paystack checkout
+- `POST /billing/paystack/verify` - Verify a Paystack transaction
+- `POST /billing/paystack/webhook` - Handle Paystack payment webhooks
 
 ## Development Workflow
 
@@ -364,22 +364,22 @@ All workspace data (users, orders, customers, billing, etc.) is stored as a sing
 
 ## Payment Processing
 
-### Flutterwave Integration
+### Paystack Integration
 
 1. **Checkout Flow:**
    - User clicks "Subscribe" in Billing page
-   - Backend initiates Flutterwave hosted checkout
-   - User redirected to Flutterwave payment page
-   - After payment, redirected back to app
+  - Backend initiates Paystack hosted checkout
+  - User is redirected to the Paystack payment page
+  - After payment, Paystack redirects back to the app with a transaction reference
 
 2. **Webhook Handling:**
-   - Flutterwave sends transaction verification to `/billing/webhook`
+  - Paystack sends signed events to `/billing/paystack/webhook`
    - Backend validates and updates billing state
    - User account activated automatically
 
 ### For Development (Without Payment)
 
-Leave Flutterwave keys unset in `.env` to use manual billing mode for testing.
+Leave `PAYSTACK_SECRET_KEY` unset in `.env` to use manual billing mode for testing.
 
 ## Building for Production
 
@@ -440,8 +440,7 @@ PATCH /orders/:id with new status
 ```env
 DATABASE_URL=postgresql://prod_user:prod_pass@prod_db:5432/sendie_prod
 NODE_ENV=production
-FLUTTERWAVE_SECRET_KEY=your_prod_key
-FLUTTERWAVE_SECRET_HASH=your_prod_hash
+PAYSTACK_SECRET_KEY=your_prod_secret_key
 APP_URL=https://yourdomain.com
 ```
 
@@ -477,9 +476,9 @@ APP_URL=https://yourdomain.com
 - Verify endpoint names match routes
 
 ### Payment errors
-- Verify Flutterwave keys are correct
-- Check `APP_URL` matches actual domain
-- Review Flutterwave dashboard for transaction details
+- Verify the Paystack secret key is correct
+- Check `APP_URL` matches the callback URL configured in Paystack
+- Review the Paystack dashboard for transaction details
 
 ## License
 
